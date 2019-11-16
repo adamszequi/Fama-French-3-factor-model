@@ -1,0 +1,35 @@
+import pandas as pd
+import scipy as sp
+import yfinance as yf
+import numpy as np
+import statsmodels.api as sm
+
+#download IBM data from online 
+data=yf.download('IBM',start='2012-1-1' , end='2016-12-31' ,auto_adjust=True)
+
+#finding the logarithm of returns
+logreturns=np.log(data.Close[:-1].values/data.Close[1:]-1)
+
+ddate=[]
+d0=data.index
+
+#isolating datetime instances
+for i in range(0,sp.size(logreturns)):
+    x=''.join([d0[i].strftime("%Y"),d0[i].strftime("%m"),"01"])
+    ddate.append(pd.to_datetime(x, format='%Y%m%d').date())
+
+#finding the returns
+t=pd.DataFrame(logreturns,np.array(ddate),columns=['RET'])
+ret=sp.exp(t.groupby(t.index).sum())-1
+
+#load monthly IBM data
+ff=pd.read_pickle("ffmonthly.pkl")
+final=pd.merge(ret,ff,left_index=True,right_index=True)
+y=final['RET']
+x=final[['MKT_RF','SMB','HML']]
+print(ret)
+
+#finding ordinary least squares regression
+x=sm.add_constant(x)
+results=sm.OLS(y,x).fit()
+print(results.summary)
